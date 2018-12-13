@@ -16,6 +16,6 @@ public class Main {
 		System.out.println(hello);
 		Address address = (Address) context.getBean("address");
 		System.out.println(address);
-		((ClassPathXmlApplicationContext) context).close();
+        ((ClassPathXmlApplicationContext) context).close();
 	}
 }
