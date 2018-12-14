@@ -11,7 +11,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  */
 public class Main {
 	public static void main(String[] args) {
-		ApplicationContext context = new ClassPathXmlApplicationContext("classpath:applicationContext.xml");
+		ApplicationContext context = new ClassPathXmlApplicationContext("classpath:xin/yangshuai/spring/beans/applicationContext.xml");
 		Hello hello = (Hello) context.getBean("hello");
 		System.out.println(hello);
 		Address address = (Address) context.getBean("address");

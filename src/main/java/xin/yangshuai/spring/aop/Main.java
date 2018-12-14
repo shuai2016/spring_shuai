@@ -1,5 +1,8 @@
 package xin.yangshuai.spring.aop;
 
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
 /**
  * Main
  *
@@ -9,8 +12,10 @@ package xin.yangshuai.spring.aop;
 public class Main {
     public static void main(String[] args) {
 
-        ArithmeticCalculator proxy = new ArithmeticCalculatorLoggingProxy(new ArithmeticCalculatorImpl()).getLoggingProxy();
-        System.out.println(proxy.add(1, 2));
+        ApplicationContext context = new ClassPathXmlApplicationContext("xin/yangshuai/spring/aop/applicationContext.xml");
+        ArithmeticCalculator bean = context.getBean(ArithmeticCalculator.class);
+        int add = bean.add(1, 2);
+        System.out.println("result : " + add);
 
     }
 }

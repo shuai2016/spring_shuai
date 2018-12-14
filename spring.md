@@ -180,15 +180,156 @@
 
 3. AOP
 
-   1. 基于注解配置AOP
-      1. 前置通知
-      2. 后置通知
-      3. 返回通知
-      4. 异常通知
-      5. 环绕通知
-      6. 切面优先级
-      7. 重用切点表达式
-   2. 基于配置文件配置AOP
+   1. 使用代理模拟AOP
+
+      ```java
+      public class ArithmeticCalculatorLoggingProxy {
+      
+         private ArithmeticCalculator target;
+      
+         public ArithmeticCalculatorLoggingProxy(ArithmeticCalculator target) {
+            this.target = target;
+         }
+      
+         public ArithmeticCalculator getLoggingProxy() {
+            ArithmeticCalculator proxy = null;
+      
+            ClassLoader loader = target.getClass().getClassLoader();
+      
+            Class[] interfaces = new Class[]{ArithmeticCalculator.class};
+      
+            InvocationHandler h = new InvocationHandler() {
+               @Override
+               public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                  String methodName = method.getName();
+                  System.out.println("The method " + methodName + " begin with " + Arrays.asList(args));
+                  Object result = method.invoke(target, args);
+                  System.out.println("The method " + methodName + " end with " + result);
+                  return result;
+               }
+            };
+            proxy = (ArithmeticCalculator) Proxy.newProxyInstance(loader, interfaces, h);
+            return proxy;
+         }
+      }
+      ```
+
+   2. AOP简介
+
+   3. AOP术语
+
+   4. AspectJ
+
+      1. Java社区里最完整最流行的AOP框架，在Spring2.0以上版本，可以使用基于AspectJ注解或基于XML配置的AOP
+      2. Spring自身也有AOP框架的实现，但是AspectJ更值得推荐和使用
+
+   5. 基于注解配置AOP
+
+      1. 使AspectJ注解生效（修改配置文件）
+
+         1. 设置扫描包，扫描IOC容器的Bean
+
+            ```xml
+            <context:component-scan base-package="xin.yangshuai.spring.aop"></context:component-scan>
+            ```
+
+         2. 使AspectJ注解生效
+
+            ```xml
+            <aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+            ```
+
+      2. 声明切面（创建一个类）
+
+         ```java
+         @Aspect
+         @Component
+         public class LoggingAspect {
+         }
+         ```
+
+         1. 声明为IOC容器中的实例，使用`@Component`注解
+         2. 声明为切面，使用`@Aspect`注解
+
+      3. 前置通知
+
+         ```java
+         @Before("execution(public int xin.yangshuai.spring.aop.ArithmeticCalculator.add(int, int))")
+         public void beforeMethod(JoinPoint joinPoint){
+            String methodName = joinPoint.getSignature().getName();
+            List<Object> args = Arrays.asList(joinPoint.getArgs());
+            System.out.println("The method "+ methodName +" begins with " + args);
+         }
+         ```
+
+         1. 切面类的一个方法，加入注解`@Before`表示前置通知
+         2. 将切入点表达式的值作为注解值`execution(public int xin.yangshuai.spring.aop.ArithmeticCalculator.add(int, int))`
+
+      4. 后置通知
+
+      5. 返回通知
+
+      6. 异常通知
+
+      7. 环绕通知
+
+      8. 切点表达式进一步抽象
+
+         ```java
+         @Before("execution(* xin.yangshuai.spring.aop.*.*(..))")
+         ```
+
+         1. 匹配任意修饰符，任意返回类型：*
+         2. 匹配包里面的所有类：*
+         3. 匹配任意方法：*
+         4. 匹配任意包和子包：..
+         5. 匹配任意数量和类型的参数：..
+
+      9. JoinPoint参数
+
+         1. 在通知方法中声明一个类型为JoinPoint的参数，然后就能访问连接细节，如方法名称和参数值。
+
+      10. 切面优先级
+
+         1. 使用`@Order(2)`注解指定切面的优先级，值越小优先级越高
+
+      11. 重用切点表达式
+
+          1. 声明切入点表达式
+
+             ```java
+             @Pointcut("execution(* xin.yangshuai.spring.aop.*.*(..))")
+             public void declareJointPointExpression(){}
+             ```
+
+             1. 定义一个方法，使用`@Pointcut`注解，切入点表达式的值作为注解值，一般方法中不需要添入其它代码
+
+          2. 引用
+
+             ```java
+             @Before("xin.yangshuai.spring.aop.LoggingAspect.declareJointPointExpression()")
+             ```
+
+             1. 通知直接使用方法名来引用当前的切入点表达式
+             2. 不同类中引用使用全类名加方法名
+
+   6. 基于配置文件配置AOP
+
+      ```xml
+      <bean id="loggingAspect" class="xin.yangshuai.spring.aop.xml.LoggingAspect"></bean>
+      
+      <bean id="validationAspect" class="xin.yangshuai.spring.aop.xml.ValidationAspect"></bean>
+      
+      <aop:config>
+          <aop:pointcut id="pointcut" expression="execution(* xin.yangshuai.spring.aop..*.*(..))"></aop:pointcut>
+          <aop:aspect ref="loggingAspect" order="2">
+              <aop:before method="beforeMethod" pointcut-ref="pointcut"/>
+          </aop:aspect>
+          <aop:aspect ref="validationAspect" order="1">
+              <aop:before method="validateArgs" pointcut-ref="pointcut"/>
+          </aop:aspect>
+      </aop:config>
+      ```
 
 4. Spring使用JdbcTemplate和JdbcDaoSupport
 
