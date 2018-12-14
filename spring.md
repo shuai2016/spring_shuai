@@ -331,11 +331,17 @@
       </aop:config>
       ```
 
-4. Spring使用JdbcTemplate和JdbcDaoSupport
+4. Spring使用JdbcTemplate
 
-5. Spring使用NamedParameterJdbcTemplate
+   1. 简介
+      1. 为了使JDBC更加易于使用，Spring在JDBC API上定义了一个抽象层，以此建立一个JDBC存取框架
+      2. 作为Spring JDBC框架的核心，JDBC模板的设计目的是为不同类型的JDBC操作提供模板方法。每个模板方法都能控制整个过程，并允许覆盖过程中的特定任务。通过这种方式，可以在尽可能保留灵活性的情况下，将数据库存取的工作量降到最低
 
-6. Spring事务
+5. Spring使用JdbcDaoSupport
+
+6. Spring使用NamedParameterJdbcTemplate
+
+7. Spring事务
 
    1. 声明式事务
    2. 事务的传播行为
@@ -347,11 +353,11 @@
          4. 过期
       2. 基于配置文件配置事务
 
-7. Spring整合Hibernate
+8. Spring整合Hibernate
 
    1. 基本配置
    2. 不使用Hibernate配置文件
 
-8. 在WEB中使用Spring的基本思路
+9. 在WEB中使用Spring的基本思路
 
-9. Spring集成Struts2
+10. Spring集成Struts2
