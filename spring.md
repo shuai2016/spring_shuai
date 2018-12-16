@@ -337,15 +337,212 @@
       1. 为了使JDBC更加易于使用，Spring在JDBC API上定义了一个抽象层，以此建立一个JDBC存取框架
       2. 作为Spring JDBC框架的核心，JDBC模板的设计目的是为不同类型的JDBC操作提供模板方法。每个模板方法都能控制整个过程，并允许覆盖过程中的特定任务。通过这种方式，可以在尽可能保留灵活性的情况下，将数据库存取的工作量降到最低
 
+   2. 配置
+
+      1. 资源文件
+
+         ```properties
+         jdbc.user=root
+         jdbc.password=root
+         jdbc.driverClass=com.mysql.jdbc.Driver
+         jdbc.jdbcUrl=jdbc:mysql:///test
+         jdbc.initPoolSize=5
+         jdbc.maxPoolSize=10
+         ```
+
+      2. Spring配置文件
+
+         ```xml
+         <!-- 导入资源文件 -->
+         <context:property-placeholder location="classpath:xin/yangshuai/spring/jdbc/db.properties"></context:property-placeholder>
+         <!-- 配置C3P0数据源 -->
+         <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+             <property name="user" value="${jdbc.user}"></property>
+             <property name="password" value="${jdbc.password}"></property>
+             <property name="jdbcUrl" value="${jdbc.jdbcUrl}"></property>
+             <property name="driverClass" value="${jdbc.driverClass}"></property>
+             <property name="initialPoolSize" value="${jdbc.initPoolSize}"></property>
+             <property name="maxPoolSize" value="${jdbc.maxPoolSize}"></property>
+         </bean>
+         <!-- 配置Spring的JdbcTemplate -->
+         <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+             <property name="dataSource" ref="dataSource"></property>
+         </bean>
+         ```
+
+      3. 取得实例
+
+         ```java
+         private ApplicationContext ctx = null;
+         private JdbcTemplate jdbcTemplate;
+         {
+            ctx = new ClassPathXmlApplicationContext("xin/yangshuai/spring/jdbc/applicationContext.xml");
+            jdbcTemplate = ctx.getBean(JdbcTemplate.class);
+         }
+         ```
+
+   3. 基本用法
+
+      1. 更新操作
+
+         ```java
+         @Test
+         public void testUpdate(){
+            String sql = "UPDATE employees SET last_name = ? WHERE id = ?";
+            jdbcTemplate.update(sql,"Jack",5);
+         }
+         ```
+
+      2. 批量更新
+
+         ```java
+         @Test
+         public void testBatchUpdate(){
+            String sql = "INSERT INTO employees(last_name,email,dept_id) VALUES (?,?,?)";
+            List<Object[]> batchArgs = new ArrayList<>();
+            batchArgs.add(new Object[]{"AA","aa@qq.com",1});
+            batchArgs.add(new Object[]{"BB","bb@qq.com",2});
+            jdbcTemplate.batchUpdate(sql,batchArgs);
+         }
+         ```
+
+         1. 最后一个参数是Object[]的List类型: 因为修改一条记录需要一个Object的数组
+
+      3. 从数据库获取一条数据，实际得到对应的一个对象
+
+         ```java
+         @Test
+         public void testQueryForObject(){
+            String sql = "SELECT id,last_name lastName,email,dept_id FROM employees WHERE id = ?";
+            RowMapper<Employee> rowMapper = new BeanPropertyRowMapper<>(Employee.class);
+            Employee employee = jdbcTemplate.queryForObject(sql, rowMapper, 6);
+            System.out.println(employee);
+         }
+         ```
+
+         1. RowMapper指定如何去映射结果集的行,常用的实现类为BeanPropertyRowMapper
+         2. 使用SQL 中列的别名完成列名和类的属性的映射,例如: last_name lastName
+         3. 不支持级联是属性, JdbcTemplate 到底是一个JDBC 的小工具,而不是 ORM 框架
+
+      4. 查询实体类的集合
+
+         ```java
+         @Test
+         public void testQueryForList(){
+            String sql = "SELECT id,last_name lastName,email FROM employees WHERE id > ?";
+            RowMapper<Employee> rowMapper = new BeanPropertyRowMapper<>(Employee.class);
+            List<Employee> employees = jdbcTemplate.query(sql, rowMapper, 1);
+            System.out.println(employees);
+         }
+         ```
+
+         1. 调用的不是queryForList方法
+
+      5. 获取单个列的值，或做统计查询
+
+         ```java
+         @Test
+         public void testQueryForObject2() {
+             String sql = "SELECT count(id) FROM employees";
+             Long count = jdbcTemplate.queryForObject(sql, Long.class);
+             System.out.println(count);
+         }
+         ```
+
+         1. 使用queryForObject(String sql, Class<T> requiredType)方法
+
 5. Spring使用JdbcDaoSupport
+
+   ```java
+   @Component
+   public class DepartmentDao extends JdbcDaoSupport {
+       @Autowired
+       public void setDataSource2(DataSource dataSource){
+           setDataSource(dataSource);
+       }
+       public Department get(Integer id){
+           String sql = "SELECT id, dept_name name From departments WHERE id = ?";
+           BeanPropertyRowMapper<Department> rowMapper = new BeanPropertyRowMapper<>(Department.class);
+           return getJdbcTemplate().queryForObject(sql, rowMapper, id);
+       }
+   }
+   ```
+
+   1. 必须要注入dataSource或者jdbcTemplate，但是set方法是final的。可以采取“曲线救国”的方式注入。
+   2. 不推荐使用JdbcDaoSupport，而推荐直接使用JdbcTemplate作为Dao类的成员变量
 
 6. Spring使用NamedParameterJdbcTemplate
 
+   1. 配置namedParameterJdbcTemplate
+
+      ```xml
+      <!-- 配置namedParameterJdbcTemplate -->
+      <bean id="namedParameterJdbcTemplate" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">
+          <constructor-arg ref="dataSource"></constructor-arg>
+      </bean>
+      ```
+
+      1. 该对象可以使用具名参数，其没有无数的构造器，所以必须为其构造器指定参数
+
+   2. 基本用法
+
+      1. 更新操作为参数起名字
+
+         ```java
+         @Test
+         public void testNamedParameterJdbcTemplate(){
+             String sql = "INSERT INTO employees(last_name, email, dept_id) VALUES(:ln,:email,:deptId)";
+             Map<String, Object> paramMap = new HashMap<>();
+             paramMap.put("ln","FF");
+             paramMap.put("email","ff@qq.com");
+             paramMap.put("deptId",2);
+             namedParameterJdbcTemplate.update(sql,paramMap);
+         }
+         ```
+
+         1. 好处：若有多个参数，则不用再去对应位置，直接对应参数名，便于维护
+         2. 缺点：较为麻烦
+
+      2. 更新操作使用对象
+
+         ```java
+         @Test
+         public void testNamedParameterJdbcTemplate2(){
+             String sql = "INSERT INTO employees(last_name, email, dept_id) VALUES(:lastName,:email,:deptId)";
+             Employee employee = new Employee();
+             employee.setLastName("XYZ");
+             employee.setEmail("xyz@qq.com");
+             employee.setDeptId(3);
+             SqlParameterSource paramSource = new BeanPropertySqlParameterSource(employee);
+             namedParameterJdbcTemplate.update(sql,paramSource);
+         }
+         ```
+
+         1. 使用具名参数时，可以使用update(String sql, SqlParameterSource paramSource)方法进行更新操作
+         2. SQL语句中的参数名和类的属性一致
+         3. 使用SqlParameterSource的BeanPropertySqlParameterSource实现类做为参数。
+
 7. Spring事务
 
-   1. 声明式事务
-   2. 事务的传播行为
-   3. 事务的其他属性
+   1. 事务简介
+      1. 用来确保数据的完整性和一致性
+      2. 事务就是一系类的动作，他们被当做一个单独的工作单元，这些动作要么全部完成，要么全部不起作用
+      3. 事务的四个关键属性（ACID）
+         1. 原子性（atomicity）：事务是一个原子操作，由一系列动作组成，事务的原子性确保动作要么全部完成，要么完全不起作用
+         2. 一致性（consistency）：一旦所用事务动作完成，事务就被提交，数据和资源就处于一种满足业务规则的一致性状态中
+         3. 隔离性（isolation）：可能有许多事务会同时处理相同的数据，因此每个事务都应该与其他事务隔离开来，防止数据损坏
+         4. 持久性（durability）：一旦事务完成，无论发生什么系统错误，它的结果都不应该受到影响，通常情况下，事务的结果被写到持久化存储器中
+   2. Spring中的事务管理
+      1. Spring在不同的事务管理API之上定义了一个抽象层，而应用程序开发人员不必了解底层的事务管理API，就可以使用Spring的事务管理机制。
+      2. 编程式事务管理
+         1. 将事务管理代码嵌入到业务方法中来控制事务的提交和回滚，在编程式管理事务时，必须在每个事务操作中包含额外的事务管理代码
+      3. 声明式事务管理
+         1. 大多数情况下比编程式事务管理更好用
+         2. 将事务管理代码从业务方法中分离出来，以声明的方式来实现事务管理
+         3. 事务管理做为一种横切关注点，可以通过AOP方法模块化，Spring通过SpringAOP框架支持声明式事务管理
+   3. 声明式事务
+   4. 事务的传播行为
+   5. 事务的其他属性
       1. 基于注解配置事务
          1. 隔离级别
          2. 回滚

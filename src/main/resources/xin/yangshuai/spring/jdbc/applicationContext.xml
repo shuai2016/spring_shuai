@@ -4,6 +4,7 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
 
 
+    <context:component-scan base-package="xin.yangshuai.spring.jdbc"></context:component-scan>
     <!-- 导入资源文件 -->
     <context:property-placeholder location="classpath:xin/yangshuai/spring/jdbc/db.properties"></context:property-placeholder>
 
@@ -21,6 +22,11 @@
     <!-- 配置Spring的JdbcTemplate -->
     <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
         <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!-- 配置namedParameterJdbcTemplate，该对象可以使用具名参数，其没有无数的构造器，所以必须为其构造器指定参数 -->
+    <bean id="namedParameterJdbcTemplate" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">
+        <constructor-arg ref="dataSource"></constructor-arg>
     </bean>
 
 </beans>
