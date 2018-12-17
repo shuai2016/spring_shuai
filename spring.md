@@ -336,6 +336,7 @@
    1. 简介
       1. 为了使JDBC更加易于使用，Spring在JDBC API上定义了一个抽象层，以此建立一个JDBC存取框架
       2. 作为Spring JDBC框架的核心，JDBC模板的设计目的是为不同类型的JDBC操作提供模板方法。每个模板方法都能控制整个过程，并允许覆盖过程中的特定任务。通过这种方式，可以在尽可能保留灵活性的情况下，将数据库存取的工作量降到最低
+      3. JdbcTemplate类被设计成为线程安全的，所以可以在IOC容器中声明它的单个实例，并将这个实例注入到所有的DAO实例中
 
    2. 配置
 
@@ -532,23 +533,113 @@
          2. 一致性（consistency）：一旦所用事务动作完成，事务就被提交，数据和资源就处于一种满足业务规则的一致性状态中
          3. 隔离性（isolation）：可能有许多事务会同时处理相同的数据，因此每个事务都应该与其他事务隔离开来，防止数据损坏
          4. 持久性（durability）：一旦事务完成，无论发生什么系统错误，它的结果都不应该受到影响，通常情况下，事务的结果被写到持久化存储器中
+
    2. Spring中的事务管理
-      1. Spring在不同的事务管理API之上定义了一个抽象层，而应用程序开发人员不必了解底层的事务管理API，就可以使用Spring的事务管理机制。
-      2. 编程式事务管理
+      1. Spring在不同的事务管理API之上定义了一个抽象层，而应用程序开发人员不必了解底层的事务管理API，就可以使用Spring的事务管理机制。有了这些事务机制，事务管理代码就能独立于特定的事务技术了
+      2. Spring的核心事务管理抽象是`interface PlatformTransactionManager`管理封装了一组独立于技术的方法，无论使用Spring的哪种事务管理策略（编程式和声明式），事务管理器是必须的
+      3. 编程式事务管理
          1. 将事务管理代码嵌入到业务方法中来控制事务的提交和回滚，在编程式管理事务时，必须在每个事务操作中包含额外的事务管理代码
-      3. 声明式事务管理
+      4. 声明式事务管理
          1. 大多数情况下比编程式事务管理更好用
          2. 将事务管理代码从业务方法中分离出来，以声明的方式来实现事务管理
          3. 事务管理做为一种横切关注点，可以通过AOP方法模块化，Spring通过SpringAOP框架支持声明式事务管理
+      5. Spring中事务管理器的不同实现
+         1. `class DataSourceTransactionManager`：在应用程序中只需要处理一个数据源，而且通过JDBC存取
+         2. `class JtaTransactionManager`：在JavaEE应用服务器上用JTA（Java Transaction API）进行事务管理
+         3. `class HibernateTransactionManager`：用Hibernate框架存取数据库
+         4. 事务管理器以普通的Bean形式声明在Spring IOC容器中
+
    3. 声明式事务
-   4. 事务的传播行为
+
+      1. 配置事务管理器 
+
+         ```xml
+         <!-- 配置事务管理器 -->
+         <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+             <property name="dataSource" ref="dataSource"></property>
+         </bean>
+         ```
+
+      2. 启用事务注解
+
+         ```xml
+         <!-- 启用事务注解 -->
+         <tx:annotation-driven transaction-manager="transactionManager"/>
+         ```
+
+      3. 在对应的方法上面加入`@Transactional`注解
+
+         ```java
+         //添加事务注解
+         @Transactional
+         @Override
+         public void purchase(String username, String isbn) {
+            //1. 获取书的单价
+            int price = bookShopDao.findBookPriceByIsbn(isbn);
+            //2. 更新书的库存
+            bookShopDao.updateBookStock(isbn);
+            //3. 更新用户余额
+            bookShopDao.updateUserAccount(username,price);
+         }
+         ```
+
+   4. 事务的传播行为（Transaction Propagation）
+
+      使用propagation指定事务的传播行为，即当前的事务方法被另外一个事务方法调用时，如何使用事务
+
+      1. Spring支持的事务传播行为
+
+         1. REQURED：默认的传播行为。如果有事务在运行，当前方法就在这个事务内运行，否则，就启动一个新的事务，并在自己的事务内运行
+         2. REQUIRES_NEW：当前的方法必须启动新事务，并在它自己的事务内运行，如果有事务正在运行，应该将它挂起
+         3. SUPPORTS
+         4. NOT_SUPPORTED
+         5. MANDATORY
+         6. NEVER
+         7. NESTED
+
+      2. 示例
+
+         ```java
+         @Transactional
+         @Override
+         public void checkout(String username, List<String> isbns) {
+            for (String isbn : isbns) {
+               bookShopService.purchase(username,isbn);
+            }
+         }
+         
+         //添加事务注解
+         //使用propagation指定事务的传播行为，即当前的事务方法被另外一个事务方法调用时
+         //如何使用事务，默认取值为REQUIRED，即使用调用方法的事务
+         //REQUIRES_NEW：使用自己的事务，调用的事务方法的事务被挂起
+         @Transactional(propagation = Propagation.REQUIRES_NEW)
+         @Override
+         public void purchase(String username, String isbn) {
+             //1. 获取书的单价
+             int price = bookShopDao.findBookPriceByIsbn(isbn);
+             //2. 更新书的库存
+             bookShopDao.updateBookStock(isbn);
+             //3. 更新用户余额
+             bookShopDao.updateUserAccount(username,price);
+         }
+         ```
+
    5. 事务的其他属性
-      1. 基于注解配置事务
-         1. 隔离级别
-         2. 回滚
-         3. 只读
-         4. 过期
-      2. 基于配置文件配置事务
+
+      1. 事务的隔离级别：isolation
+         1. 并发事务所导致的问题：当一个应用程序或者多个应用程序中的多个事务在同一个数据集上并发执行时，可能会出现许多意外的问题：
+            1. 脏读
+            2. 不可重复读
+            3. 幻读
+         2. 常用的属性值：`isolation = Isolation.READ_COMMITTED`（读已提交）
+      2. 事务的回滚属性
+         1. 默认情况下Spring的声明式事务对所有的运行时异常进行回滚，也可以通过对应的属性进行设置，通常情况取默认值即可
+         2. rollbackFor属性：对指定异常也回滚（可配置多个）：`rollbackFor = {Exception.class}`
+         3. noRollbackFor属性：对指定异常不回滚（可配置多个）：`noRollbackFor = {UserAccountException.class}`
+      3. 事务的只读属性
+      4. 事务的过期属性
+
+   6. 基于配置文件配置事务
 
 8. Spring整合Hibernate
 
