@@ -26,7 +26,7 @@ public class BookShopServiceImpl implements BookShopService {
 	 * 2. 使用isolation 指定事务的隔离级别，最常用的取值为 READ_COMMITTED
 	 * 3. 默认情况下Spring的声明式事务对所有的运行时异常进行回滚
 	 * 也可以通过对应的属性进行设置，通常情况取默认值即可
-	 * 4. 只读事务属性；表示这个事务只读取数据但不更新数据，
+	 * 4. 只读事务属性：表示这个事务只读取数据但不更新数据，
 	 * 这样可以帮助数据库引擎优化事务，若真的是一个只读取数据库值的方法，应设置readOnly = true
 	 * 5. 使用timeout指定强制回滚之前事务可以占用的时间
 	 * @param username
@@ -41,7 +41,7 @@ public class BookShopServiceImpl implements BookShopService {
 	)
 	@Override
 	public void purchase(String username, String isbn) {
-		//1. 获取书的单价
+        //1. 获取书的单价
 		int price = bookShopDao.findBookPriceByIsbn(isbn);
 		//2. 更新书的库存
 		bookShopDao.updateBookStock(isbn);

@@ -637,9 +637,35 @@
          2. rollbackFor属性：对指定异常也回滚（可配置多个）：`rollbackFor = {Exception.class}`
          3. noRollbackFor属性：对指定异常不回滚（可配置多个）：`noRollbackFor = {UserAccountException.class}`
       3. 事务的只读属性
+         1. 只读事务属性：表示这个事务只读取数据但不更新数据，这样可以帮助数据库引擎优化事务，若真的是一个只读取数据库值的方法，应设置`readOnly = true`
       4. 事务的过期属性
+         1. 使用timeout指定强制回滚之前事务可以占用的时间：`timeout = 3`（秒）
 
    6. 基于配置文件配置事务
+
+      ```xml
+      <!-- 1. 配置事务管理器 -->
+      <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+          <property name="dataSource" ref="dataSource"></property>
+      </bean>
+      
+      <!-- 2. 配置事务属性 -->
+      <tx:advice id="txAdvice" transaction-manager="transactionManager">
+          <tx:attributes>
+              <!-- 根据方法名指定事务的属性 -->
+              <tx:method name="purchase" propagation="REQUIRES_NEW"/>
+              <tx:method name="get*" read-only="true"/>
+              <tx:method name="find*" read-only="true"/>
+              <tx:method name="*"/>
+          </tx:attributes>
+      </tx:advice>
+      
+      <!-- 3. 配置事务切入点，以及把事务切入点和事务属性关联起来 -->
+      <aop:config>
+          <aop:pointcut id="txPointCut" expression="execution(* xin.yangshuai.spring.tx.xml.service.*.*(..))"></aop:pointcut>
+          <aop:advisor advice-ref="txAdvice" pointcut-ref="txPointCut"/>
+      </aop:config>
+      ```
 
 8. Spring整合Hibernate
 
